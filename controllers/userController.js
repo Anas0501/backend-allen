@@ -217,7 +217,7 @@ exports.getAllUsers = async (req, res) => {
 // @access  Private/Admin
 exports.getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select("-password");
+    const user = await User.findOne({ userId: req.params.id }).select("-password");
 
     if (!user) {
       return res.status(404).json({
@@ -247,7 +247,7 @@ exports.updateUser = async (req, res) => {
   try {
     const { name, email, isAdmin, roles, password } = req.body;
 
-    let user = await User.findById(req.params.id);
+    let user = await User.findOne({ userId: req.params.id });
 
     if (!user) {
       return res.status(404).json({
@@ -261,7 +261,7 @@ exports.updateUser = async (req, res) => {
     if (email) {
       // Check if email already exists for another user
       const existingUser = await User.findOne({ email });
-      if (existingUser && existingUser._id.toString() !== req.params.id) {
+      if (existingUser && existingUser.userId !== req.params.id) {
         return res.status(400).json({
           success: false,
           message: "Email already in use",
@@ -309,7 +309,7 @@ exports.updateUser = async (req, res) => {
 // @access  Private/Admin
 exports.deleteUser = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findOne({ userId: req.params.id });
 
     if (!user) {
       return res.status(404).json({

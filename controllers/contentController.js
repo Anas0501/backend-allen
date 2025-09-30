@@ -44,14 +44,14 @@ exports.createContent = async (req, res) => {
       body,
       category,
       tags: tags || [],
-      author_id: req.user._id, // Automatically from authenticated user
+      author_id: req.user.userId,
       status: status || "draft",
     });
 
     await content.save();
 
     // Populate author details
-    await content.populate("author_id", "name email userId");
+    await content.populate("author", "name email userId");
 
     res.status(201).json({
       success: true,

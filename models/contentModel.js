@@ -27,7 +27,7 @@ const contentSchema = new mongoose.Schema(
       trim: true
     }],
     author_id: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: 'User',
       required: [true, 'Author ID is required']
     },
