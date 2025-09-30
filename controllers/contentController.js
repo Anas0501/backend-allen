@@ -1,4 +1,5 @@
 const Content = require("../models/contentModel");
+const User = require("../models/userModel");
 
 // Helper function to generate slug from title
 const generateSlug = (title) => {
@@ -8,6 +9,19 @@ const generateSlug = (title) => {
     .replace(/\s+/g, "-")
     .replace(/--+/g, "-")
     .trim();
+};
+
+// Helper function to get author details
+const getAuthorDetails = async (userId) => {
+  const user = await User.findOne({ userId }).select("name email userId");
+  if (!user) {
+    return null;
+  }
+  return {
+    userId: user.userId,
+    name: user.name,
+    email: user.email,
+  };
 };
 
 // @desc    Create new content
@@ -37,7 +51,7 @@ exports.createContent = async (req, res) => {
       });
     }
 
-    // Create new content with logged-in user as author
+    // Create new content with logged-in user's userId as author
     const content = new Content({
       title,
       slug: finalSlug,
@@ -50,13 +64,28 @@ exports.createContent = async (req, res) => {
 
     await content.save();
 
-    // Populate author details
-    await content.populate("author", "name email userId");
+    // Get author details
+    const authorDetails = await getAuthorDetails(content.author_id);
+
+    // Return content with author details
+    const contentWithAuthor = {
+      _id: content._id,
+      title: content.title,
+      slug: content.slug,
+      body: content.body,
+      category: content.category,
+      tags: content.tags,
+      author_id: content.author_id,
+      author: authorDetails,
+      status: content.status,
+      createdAt: content.createdAt,
+      updatedAt: content.updatedAt,
+    };
 
     res.status(201).json({
       success: true,
       message: "Content created successfully",
-      data: content,
+      data: contentWithAuthor,
     });
   } catch (error) {
     console.error("Error creating content:", error);
@@ -84,20 +113,39 @@ exports.getAllContent = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const contents = await Content.find(query)
-      .populate("author_id", "name email userId")
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
       .skip(skip);
 
     const total = await Content.countDocuments(query);
 
+    // Get author details for each content
+    const contentsWithAuthors = await Promise.all(
+      contents.map(async (content) => {
+        const authorDetails = await getAuthorDetails(content.author_id);
+        return {
+          _id: content._id,
+          title: content.title,
+          slug: content.slug,
+          body: content.body,
+          category: content.category,
+          tags: content.tags,
+          author_id: content.author_id,
+          author: authorDetails,
+          status: content.status,
+          createdAt: content.createdAt,
+          updatedAt: content.updatedAt,
+        };
+      })
+    );
+
     res.status(200).json({
       success: true,
-      count: contents.length,
+      count: contentsWithAuthors.length,
       total,
       page: parseInt(page),
       pages: Math.ceil(total / limit),
-      data: contents,
+      data: contentsWithAuthors,
     });
   } catch (error) {
     console.error("Error fetching content:", error);
@@ -114,10 +162,7 @@ exports.getAllContent = async (req, res) => {
 // @access  Public
 exports.getContentBySlug = async (req, res) => {
   try {
-    const content = await Content.findOne({ slug: req.params.slug }).populate(
-      "author_id",
-      "name email userId"
-    );
+    const content = await Content.findOne({ slug: req.params.slug });
 
     if (!content) {
       return res.status(404).json({
@@ -126,9 +171,26 @@ exports.getContentBySlug = async (req, res) => {
       });
     }
 
+    // Get author details
+    const authorDetails = await getAuthorDetails(content.author_id);
+
+    const contentWithAuthor = {
+      _id: content._id,
+      title: content.title,
+      slug: content.slug,
+      body: content.body,
+      category: content.category,
+      tags: content.tags,
+      author_id: content.author_id,
+      author: authorDetails,
+      status: content.status,
+      createdAt: content.createdAt,
+      updatedAt: content.updatedAt,
+    };
+
     res.status(200).json({
       success: true,
-      data: content,
+      data: contentWithAuthor,
     });
   } catch (error) {
     console.error("Error fetching content:", error);
@@ -145,10 +207,7 @@ exports.getContentBySlug = async (req, res) => {
 // @access  Public
 exports.getContentById = async (req, res) => {
   try {
-    const content = await Content.findById(req.params.id).populate(
-      "author_id",
-      "name email userId"
-    );
+    const content = await Content.findById(req.params.id);
 
     if (!content) {
       return res.status(404).json({
@@ -157,9 +216,26 @@ exports.getContentById = async (req, res) => {
       });
     }
 
+    // Get author details
+    const authorDetails = await getAuthorDetails(content.author_id);
+
+    const contentWithAuthor = {
+      _id: content._id,
+      title: content.title,
+      slug: content.slug,
+      body: content.body,
+      category: content.category,
+      tags: content.tags,
+      author_id: content.author_id,
+      author: authorDetails,
+      status: content.status,
+      createdAt: content.createdAt,
+      updatedAt: content.updatedAt,
+    };
+
     res.status(200).json({
       success: true,
-      data: content,
+      data: contentWithAuthor,
     });
   } catch (error) {
     console.error("Error fetching content:", error);
@@ -188,10 +264,7 @@ exports.updateContent = async (req, res) => {
     }
 
     // Check if user is author or admin
-    if (
-      content.author_id.toString() !== req.user._id.toString() &&
-      !req.user.isAdmin
-    ) {
+    if (content.author_id !== req.user.userId && !req.user.isAdmin) {
       return res.status(403).json({
         success: false,
         message: "Not authorized to update this content",
@@ -219,13 +292,27 @@ exports.updateContent = async (req, res) => {
 
     await content.save();
 
-    // Populate author details
-    await content.populate("author_id", "name email userId");
+    // Get author details
+    const authorDetails = await getAuthorDetails(content.author_id);
+
+    const contentWithAuthor = {
+      _id: content._id,
+      title: content.title,
+      slug: content.slug,
+      body: content.body,
+      category: content.category,
+      tags: content.tags,
+      author_id: content.author_id,
+      author: authorDetails,
+      status: content.status,
+      createdAt: content.createdAt,
+      updatedAt: content.updatedAt,
+    };
 
     res.status(200).json({
       success: true,
       message: "Content updated successfully",
-      data: content,
+      data: contentWithAuthor,
     });
   } catch (error) {
     console.error("Error updating content:", error);
@@ -252,10 +339,7 @@ exports.deleteContent = async (req, res) => {
     }
 
     // Check if user is author or admin
-    if (
-      content.author_id.toString() !== req.user._id.toString() &&
-      !req.user.isAdmin
-    ) {
+    if (content.author_id !== req.user.userId && !req.user.isAdmin) {
       return res.status(403).json({
         success: false,
         message: "Not authorized to delete this content",

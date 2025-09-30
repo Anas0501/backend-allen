@@ -28,7 +28,6 @@ const contentSchema = new mongoose.Schema(
     }],
     author_id: {
       type: String,
-      ref: 'User',
       required: [true, 'Author ID is required']
     },
     status: {
@@ -43,9 +42,9 @@ const contentSchema = new mongoose.Schema(
 );
 
 // Create indexes for better performance
-// Note: slug already has unique:true so no need to index it again
 contentSchema.index({ title: 'text', body: 'text' });
 contentSchema.index({ category: 1, status: 1 });
+contentSchema.index({ author_id: 1 });
 
 const Content = mongoose.model('Content', contentSchema);
 module.exports = Content;
