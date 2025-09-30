@@ -4,6 +4,11 @@ const jwt = require('jsonwebtoken');
 
 const userSchema = new mongoose.Schema(
   {
+    userId: {
+      type: String,
+      unique: true,
+      required: true
+    },
     name: {
       type: String,
       required: [true, 'Name is required'],
@@ -25,7 +30,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Password is required'],
       minlength: [6, 'Password must be at least 6 characters'],
-      select: false // Don't return password by default in queries
+      select: false
     },
     isAdmin: {
       type: Boolean,
@@ -43,9 +48,17 @@ const userSchema = new mongoose.Schema(
     }
   },
   {
-    timestamps: true // Automatically adds createdAt and updatedAt
+    timestamps: true
   }
 );
+
+// Generate unique userId before saving
+userSchema.pre('save', async function(next) {
+  if (this.isNew) {
+    this.userId = `USER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+  next();
+});
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {
@@ -68,6 +81,7 @@ userSchema.methods.generateAuthToken = function() {
   return jwt.sign(
     { 
       id: this._id,
+      userId: this.userId,
       email: this.email,
       isAdmin: this.isAdmin,
       roles: this.roles
